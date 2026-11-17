@@ -19,12 +19,15 @@ import time
 import warnings
 import atexit
 
-__version__ = "0.1.0"
-__all__ = ["record_to", "log", "env_state", "stop"]
+__version__ = "0.1.1"
+
+from .types import Span, Verdict                      # noqa: E402
+from .rollout import load_rollout, monitor_view      # noqa: E402
+__all__ = ["record_to", "log", "env_state", "end", "stop", "Verdict", "Span", "load_rollout", "monitor_view"]
 
 SAMPLING_KEYS = ("temperature", "top_p", "top_k", "min_p", "max_tokens", "max_completion_tokens", "seed", "repetition_penalty",
                  "presence_penalty", "frequency_penalty", "stop")
-_S = {"path": None, "lock": threading.Lock(), "meta": {}, "n": 0, "env": None, "hooked": False}
+_S = {"path": None, "lock": threading.Lock(), "meta": {}, "n": 0, "env": None, "hooked": False, "ended": False}
 
 
 # ------------------------------------------------------------------ writing
@@ -43,7 +46,8 @@ def _jsonable(x):
 def _write(rec):
     if not _S["path"]:
         return
-    _S["n"] += 1
+    if "end" not in rec:
+        _S["n"] += 1
     with _S["lock"]:
         h = _S.pop("header", None)
         data = (json.dumps(_jsonable(h), ensure_ascii=False) + "\n" if h else "") + json.dumps(_jsonable(rec), ensure_ascii=False) + "\n"
@@ -60,7 +64,7 @@ def record_to(path, _quiet=False, **meta):
         revision="<full hf commit hash>", dtype="bfloat16", quantization="none" | "gguf-q4_k_m" | ..., chat_template="default" | "<name or hash>"
     If the run uses several models (e.g. a second model that summarises the context), declare each one by name instead:
         models={"Qwen/Qwen3-1.7B": {"revision": "...", "dtype": "bfloat16", "quantization": "none", "chat_template": "default"}, "Qwen/Qwen3-0.6B": {...}}"""
-    _S["path"], _S["meta"], _S["n"], _S["quiet"] = os.fspath(path), meta, 0, _quiet
+    _S["path"], _S["meta"], _S["n"], _S["quiet"], _S["ended"] = os.fspath(path), meta, 0, _quiet, False
     header = {"header": {"argus_bench": __version__, "python": platform.python_version(), "started": time.time(), **meta}}
     try:
         import openai
@@ -80,6 +84,27 @@ def env_state(state):
     A function is called at the START of each model call (so state that changes between calls is captured when the OpenAI hook is used);
     with log() it is called when you log. Pass None to stop. Keep it small: put big state in a file and record its path or hash here."""
     _S["env"] = state
+
+
+def end(state=None):
+    """Declare the state of the environment at the END of the run (final file contents, command log, answer key, labels from annotators, ...).
+    `state` is JSON-able; if omitted and a function was declared with env_state(), it is evaluated now. The verifier receives it as rollout["end"]["env_state"];
+    monitors never see it. If you never call end() and declared env_state(), the final state is written automatically when the program exits.
+    Keep it small: put big files in artifacts/<rollout id>/ and record paths or hashes here."""
+    if state is None:
+        state, on = _env()
+        if not on:
+            return
+    _write({"end": {"t": time.time(), "env_state": state}})
+    _S["ended"] = True
+
+
+def _end_at_exit():
+    if _S["path"] and _S["env"] is not None and not _S["ended"] and _S["n"] > 0:
+        end()
+
+
+atexit.register(_end_at_exit)
 
 
 def _env():

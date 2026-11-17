@@ -3,7 +3,12 @@ import json
 
 
 def load(path):
-    header, recs = {}, []
+    return _read(path)[:2]
+
+
+def _read(path):
+    """(header, records, end): `end` is the last {"end": ...} line, the state declared when the run finished (or None)."""
+    header, recs, end = {}, [], None
     for i, line in enumerate(open(path), 1):
         if not line.strip():
             continue
@@ -11,14 +16,16 @@ def load(path):
             obj = json.loads(line)
         except json.JSONDecodeError as e:
             raise ValueError(f"{path}:{i}: not valid JSON ({e})")
-        if "header" in obj:
+        if "end" in obj and "messages" not in obj:
+            end = obj["end"] if end is None or obj["end"].get("t", 0) >= end.get("t", 0) else end
+        elif "header" in obj:
             h = dict(obj["header"])
             if isinstance(h.get("models"), dict) and isinstance(header.get("models"), dict):
                 h["models"] = {**header["models"], **h["models"]}          # several processes may declare different models
             header.update(h)
         else:
             recs.append(obj)
-    return header, recs
+    return header, recs, end
 
 
 RUN_FIELDS = ("revision", "dtype", "quantization", "chat_template")

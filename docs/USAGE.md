@@ -57,7 +57,7 @@ ARGUS_BENCH_LOG=/path/rollout.jsonl
 ARGUS_BENCH_META='{"revision": "<hash>", "library": "vllm 0.23.0 (server)", "dtype": "bfloat16", "quantization": "none", "chat_template": "default"}'
 ```
 
-Every Python process started with those variables records its `openai` calls to the file (the package ships a `.pth` file that starts the
+Use one file per rollout: give every rollout its own `ARGUS_BENCH_LOG` path. Every Python process started with those variables records its `openai` calls to the file (the package ships a `.pth` file that starts the
 recording at interpreter start-up). Several processes can write to the same file. Processes that make no model call write nothing.
 This is the same as route A, so the same notes apply.
 
@@ -124,6 +124,8 @@ argus_bench.env_state({"task": "fix-bug-12"})                                   
 The value ends up as `env_state` on every record. It is evaluated in the process that called `record_to`, so that process must be able to see the
 environment (read the files, or ask the sandbox). With route B (environment variables) there is no code to declare it in, so use a function that
 reads a state file your harness keeps up to date, or pass `env_state=` to `log`.
+
+To record the state of the environment at the *end* of a run, call `argus_bench.end(state)` (see [SUBMISSION.md](SUBMISSION.md)).
 
 ## Check your file
 

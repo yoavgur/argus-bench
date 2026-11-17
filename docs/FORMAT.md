@@ -94,6 +94,16 @@ What the model produced in *this* call, as separate fields. Leave out empty ones
 
 Write the model's text exactly as it came out. Do not trim, normalise, pretty-print or re-serialise it.
 
+## End line (optional)
+
+A rollout may end with one line holding the state of the environment when the run finished:
+
+```json
+{"end": {"t": 1794397999.1, "env_state": {"final_files": {"solution.py": "..."}, "answer_key": "42"}}}
+```
+
+If several end lines exist (several processes), the latest one counts. It is not a model call. See SUBMISSION.md for what it is for.
+
 ## Rules
 
 1. One record per model call, in call order. If a call returns several choices (`n > 1`), write one record per choice.
