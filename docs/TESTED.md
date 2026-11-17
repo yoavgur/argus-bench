@@ -16,4 +16,4 @@ Tested means: run for real against the library or server, and the resulting file
 | Responses API, non-Python clients, SDKs other than `openai` | | not supported (write the file yourself, see FORMAT.md) |
 
 `openai` package versions: the capture tests pass on 1.6.1, 1.12.0, 1.30.5, 1.54.5, 1.82.0, 1.109.1, 2.0.0, 2.30.0 and 3.49.0 (spot checks, not every
-release). 1.0.0 cannot be used (its `create` has no `tools` argument). The test suite also runs in CI on Python 3.9 and 3.12 (GitHub Actions).
+release). 1.0.0 cannot be used (its `create` has no `tools` argument). The test suite (74 tests, 98% line coverage) runs in CI (GitHub Actions) on Python 3.9, 3.10, 3.12 and 3.13 with openai 1.30.5, 1.82.0, 1.109.1, 2.30.0 and the newest release, on every push and every Monday. A separate CI job builds the wheel and tests the installed wheel in a clean environment.
