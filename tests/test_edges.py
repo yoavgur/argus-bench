@@ -338,3 +338,22 @@ def test_check_warns_when_the_run_ends_right_after_a_tool_call(tmp_path):
     argus_bench.log(MSGS, "final answer", model="m", sampling={"temperature": 1})
     argus_bench.stop()
     assert not any("tool call" in w for w in check(q)[1])
+
+
+def test_stop_writes_the_final_state_if_end_was_not_called(tmp_path):
+    p = tmp_path / "s.jsonl"
+    argus_bench.record_to(p, library="x")
+    argus_bench.env_state(lambda: {"final": "state"})
+    argus_bench.log(MSGS, "ok", model="m")
+    argus_bench.stop()
+    argus_bench._end_at_exit()                                              # the interpreter-exit hook afterwards must not add another
+    argus_bench.env_state(None)
+    assert p.read_text().count('"end"') == 1 and load_rollout(p)["end"]["env_state"] == {"final": "state"}
+    q = tmp_path / "t.jsonl"                                                # an explicit end() is not repeated by stop()
+    argus_bench.record_to(q, library="x")
+    argus_bench.env_state(lambda: {"final": "auto"})
+    argus_bench.log(MSGS, "ok", model="m")
+    argus_bench.end({"final": "explicit"})
+    argus_bench.stop()
+    argus_bench.env_state(None)
+    assert q.read_text().count('"end"') == 1 and load_rollout(q)["end"]["env_state"] == {"final": "explicit"}

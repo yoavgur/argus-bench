@@ -39,3 +39,35 @@ def server():
     threading.Thread(target=s.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{s.server_address[1]}/v1"
     s.shutdown()
+
+
+class ToolFake(BaseHTTPRequestHandler):
+    """An OpenAI-compatible server for tool loops: it asks for a bash tool call, numbered by how many tool results it has seen,
+    until the user message contains FINISH, then it answers with text."""
+
+    def log_message(self, *a):
+        pass
+
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["content-length"])))
+        msgs = body["messages"]
+        n = sum(1 for m in msgs if m["role"] == "tool")
+        if "FINISH" in str(msgs[0]["content"]) and n >= 2:
+            msg, finish = {"role": "assistant", "content": "all done"}, "stop"
+        else:
+            msg = {"role": "assistant", "content": "", "tool_calls": [{"id": f"call_{n}", "type": "function", "function": {"name": "bash", "arguments": json.dumps({"command": f"step {n}"})}}]}
+            finish = "tool_calls"
+        data = json.dumps({"id": "x", "object": "chat.completion", "created": 0, "model": body["model"], "choices": [{"index": 0, "message": msg, "finish_reason": finish}]}).encode()
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+
+@pytest.fixture
+def tool_server():
+    s = ThreadingHTTPServer(("127.0.0.1", 0), ToolFake)
+    threading.Thread(target=s.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{s.server_address[1]}/v1"
+    s.shutdown()

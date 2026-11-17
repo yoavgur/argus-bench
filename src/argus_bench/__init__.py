@@ -77,6 +77,8 @@ def record_to(path, _quiet=False, **meta):
 
 
 def stop():
+    """Stop recording. If you declared env_state() and never called end(), the final state is written first."""
+    _end_at_exit()
     _S["path"] = None
 
 

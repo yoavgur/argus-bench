@@ -59,7 +59,7 @@ def _same(a, b):
 
 def check(path):
     """Returns (problems, warnings, info)."""
-    header, recs, _, notes = _read(path)
+    header, recs, end_state, notes = _read(path)
     problems, warnings, info = [], [], {}
     if not recs:
         return ["no model calls in file"], [], {}
@@ -118,9 +118,9 @@ def check(path):
                 other += 1
         prev = r
     last = recs[-1].get("output") or {}
-    if last.get("tool_calls"):
+    if last.get("tool_calls") and end_state is None:
         warnings.append("the run ends right after a tool call: its result is in no record (results appear only as input of the next model call). "
-                        "If your verifier needs it, save it with argus_bench.end({...})")
+                        "If your verifier needs it, save it with argus_bench.end({...}) (this warning disappears once the file has an end state)")
     info = {"calls": len(recs), "models": sorted(m for m in models if m), "calls_extending_previous": ext,
             "calls_with_new_context (compaction / new thread)": other, "annotations": len(notes), "header": header}
     return problems, warnings, info

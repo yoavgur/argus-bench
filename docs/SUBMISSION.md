@@ -61,7 +61,8 @@ A complete walkthrough is in [EXAMPLE.md](EXAMPLE.md). Four places, use whicheve
 1. **`argus_bench.env_state(...)`**: state at the start of each model call (a function or a value; see USAGE.md). Ends up in `rollout["calls"][i]["env_state"]`.
 2. **`argus_bench.end(state)`**: state at the end of the run, once per rollout: final contents of edited files, the log of commands the model ran, an answer key,
    labels from human annotators. Ends up in `rollout["end"]["env_state"]`. If you declared `env_state(...)` and never call `end()`, the final state is written
-   automatically when the program exits.
+   automatically when the program exits or when you call `argus_bench.stop()`.
+   (A program that ends with `os._exit()` or is killed runs no exit hooks, so no final state is written; the calls themselves are always already on disk. Call `end()` yourself before such an exit.)
    ```python
    argus_bench.end({"final_files": {"solution.py": open("solution.py").read()}, "answer_key": "42"})
    ```
