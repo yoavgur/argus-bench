@@ -12,7 +12,7 @@ Tested means: run for real against the library or server, and the resulting file
 | transformers in-process | C (`log`) | tested |
 | vLLM offline `LLM`, llama-cpp-python in-process | C | tested earlier; the snippets in USAGE.md were retyped and not re-run |
 | SGLang 0.5.5 server (tool call with reasoning split, stream, async, compaction, `env_state`, and an agent in a subprocess via `ARGUS_BENCH_LOG`) | A, B | tested (openai 2.6.1 on the client side) |
-| SGLang `Engine` in-process | C | not yet tested |
+| SGLang 0.5.5 `Engine` in-process | C (`log`) | tested |
 | Responses API, non-Python clients, SDKs other than `openai` | | not supported (write the file yourself, see FORMAT.md) |
 
 `openai` package versions: the capture tests pass on 1.6.1, 1.12.0, 1.30.5, 1.54.5, 1.82.0, 1.109.1, 2.0.0, 2.30.0 and 3.49.0 (spot checks, not every
