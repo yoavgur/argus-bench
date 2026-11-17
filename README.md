@@ -24,6 +24,7 @@ Agent you cannot edit, or one that runs in a container? Set `ARGUS_BENCH_LOG=/pa
 Check the result with `argus-bench check rollout.jsonl`.
 
 * [docs/USAGE.md](docs/USAGE.md): how to record with every supported way of running a model
+* [docs/EXAMPLE.md](docs/EXAMPLE.md): a complete worked example (record, verifier, submission, annotations)
 * [docs/SUBMISSION.md](docs/SUBMISSION.md): verifier, `Verdict`, labels, evidence, and `argus-bench check-submission`
 * [docs/FORMAT.md](docs/FORMAT.md): the exact file format, so you can produce it without this package
 * [docs/TESTED.md](docs/TESTED.md): what has and has not been tested

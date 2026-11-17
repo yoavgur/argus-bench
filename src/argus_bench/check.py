@@ -1,14 +1,25 @@
 """Structural check of a rollout file. No model needed."""
 import json
+import os
 
 
 def load(path):
     return _read(path)[:2]
 
 
+def _append(path, obj):
+    """Append one JSON line with a single write() call (safe with several writers)."""
+    fd = os.open(os.fspath(path), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+    try:
+        os.write(fd, (json.dumps(obj, ensure_ascii=False, default=str) + "\n").encode("utf-8"))
+    finally:
+        os.close(fd)
+
+
 def _read(path):
-    """(header, records, end): `end` is the last {"end": ...} line, the state declared when the run finished (or None)."""
-    header, recs, end = {}, [], None
+    """(header, records, end, annotations): `end` is the last {"end": ...} line, the state declared when the run finished (or None);
+    `annotations` are the {"annotation": ...} lines added after the fact, in file order."""
+    header, recs, end, notes = {}, [], None, []
     for i, line in enumerate(open(path), 1):
         if not line.strip():
             continue
@@ -16,7 +27,9 @@ def _read(path):
             obj = json.loads(line)
         except json.JSONDecodeError as e:
             raise ValueError(f"{path}:{i}: not valid JSON ({e})")
-        if "end" in obj and "messages" not in obj:
+        if "annotation" in obj and "messages" not in obj:
+            notes.append(obj["annotation"])
+        elif "end" in obj and "messages" not in obj:
             end = obj["end"] if end is None or obj["end"].get("t", 0) >= end.get("t", 0) else end
         elif "header" in obj:
             h = dict(obj["header"])
@@ -25,7 +38,7 @@ def _read(path):
             header.update(h)
         else:
             recs.append(obj)
-    return header, recs, end
+    return header, recs, end, notes
 
 
 RUN_FIELDS = ("revision", "dtype", "quantization", "chat_template")
@@ -46,10 +59,16 @@ def _same(a, b):
 
 def check(path):
     """Returns (problems, warnings, info)."""
-    header, recs = load(path)
+    header, recs, _, notes = _read(path)
     problems, warnings, info = [], [], {}
     if not recs:
         return ["no model calls in file"], [], {}
+    for n in notes:
+        c, m = n.get("call"), n.get("message")
+        if c is not None and not (isinstance(c, int) and 0 <= c < len(recs)):
+            problems.append(f"annotation points to call {c!r}, but the file has {len(recs)} calls")
+        elif m is not None and (c is None or not (isinstance(m, int) and 0 <= m < len(recs[c].get("messages") or []))):
+            problems.append(f"annotation points to message {m!r} of call {c!r}, which does not exist")
     for i, r in enumerate(recs):
         w = f"call {i}"
         if not r.get("messages"):
@@ -99,5 +118,5 @@ def check(path):
                 other += 1
         prev = r
     info = {"calls": len(recs), "models": sorted(m for m in models if m), "calls_extending_previous": ext,
-            "calls_with_new_context (compaction / new thread)": other, "header": header}
+            "calls_with_new_context (compaction / new thread)": other, "annotations": len(notes), "header": header}
     return problems, warnings, info

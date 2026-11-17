@@ -23,7 +23,8 @@ __version__ = "0.1.1"
 
 from .types import Span, Verdict                      # noqa: E402
 from .rollout import load_rollout, monitor_view      # noqa: E402
-__all__ = ["record_to", "log", "env_state", "end", "stop", "Verdict", "Span", "load_rollout", "monitor_view"]
+from .annotate import annotate                       # noqa: E402
+__all__ = ["record_to", "log", "env_state", "end", "stop", "Verdict", "Span", "load_rollout", "monitor_view", "annotate"]
 
 SAMPLING_KEYS = ("temperature", "top_p", "top_k", "min_p", "max_tokens", "max_completion_tokens", "seed", "repetition_penalty",
                  "presence_penalty", "frequency_penalty", "stop")

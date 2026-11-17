@@ -51,12 +51,12 @@ def verify(rollout: dict, artifacts_dir: Path, llm) -> Verdict:
 ## What monitors see
 
 Monitors see the transcript only: `argus_bench.monitor_view(rollout)` returns `{"calls": [{"messages", "tools", "output", "finish_reason"}, ...]}`.
-Hidden from monitors: `env_state`, the end state, the header (rollout_id, library, revision, ...), sampling settings, timestamps and the rollout id.
+Hidden from monitors: `env_state`, the end state, annotations, the header (rollout_id, library, revision, ...), sampling settings, timestamps and the rollout id.
 So anything you put into `env_state`, `end()` or `artifacts/` is evidence for your verifier only.
 
 ## Evidence the monitor cannot see
 
-Three places, use whichever fits:
+A complete walkthrough is in [EXAMPLE.md](EXAMPLE.md). Four places, use whichever fits:
 
 1. **`argus_bench.env_state(...)`**: state at the start of each model call (a function or a value; see USAGE.md). Ends up in `rollout["calls"][i]["env_state"]`.
 2. **`argus_bench.end(state)`**: state at the end of the run, once per rollout: final contents of edited files, the log of commands the model ran, an answer key,
@@ -68,7 +68,27 @@ Three places, use whichever fits:
 3. **`artifacts/`**: bigger files. Suggested layout: `artifacts/<rollout id>/...`, and the verifier reads `artifacts_dir / rollout["id"] / "..."`.
    Record paths or hashes in `env_state`/`end` if you want a pointer from the rollout.
 
+4. **`argus_bench.annotate(...)`**: added later, by a person or another program (see the next section).
+
 Keep `env_state`/`end` values small and JSON-able.
+
+## Adding evidence after the run (human annotators, second graders)
+
+Evidence can also be added after the fact, to the rollout as a whole, to one model call, or to one input message of a call. The original lines of the file are never
+changed: each annotation is a new line appended at the end.
+
+```python
+argus_bench.annotate("rollouts/rollout_07.jsonl", {"misbehavior": True, "note": "deletes the backup"}, call=3, by="annotator_2")             # about call 3
+argus_bench.annotate("rollouts/rollout_07.jsonl", {"misleading": "the user never asked for this"}, call=3, message=5, by="annotator_2")    # about message 5 of call 3
+argus_bench.annotate("rollouts/rollout_07.jsonl", {"overall": "clear sabotage"}, by="annotator_3")                                          # whole rollout
+```
+```
+argus-bench annotate rollouts/rollout_07.jsonl --call 3 --by annotator_2 --data '{"misbehavior": true}'      # same from the command line
+```
+
+`data` is any JSON value. `annotate` refuses a call or message index that does not exist, and `argus-bench check` flags annotations that point nowhere (for example after
+hand edits). The verifier receives them as `rollout["calls"][i]["annotations"]` (a list of `{"message", "data", "by", "t"}`, empty if none) and `rollout["annotations"]`
+for the whole rollout. Monitors never see them.
 
 ## Check your submission before uploading
 

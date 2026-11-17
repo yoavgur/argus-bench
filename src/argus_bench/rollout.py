@@ -10,10 +10,21 @@ def load_rollout(path):
         {"id": "<file name without extension>",
          "header": {...run facts: library, models, rollout_id...},
          "calls": [{"model", "messages", "tools", "sampling", "output", "finish_reason", "env_state", ...}, ...],
-         "end": {"t": ..., "env_state": ...} or None}      # state declared when the run finished, see argus_bench.end()
+         "end": {"t": ..., "env_state": ...} or None,      # state declared when the run finished, see argus_bench.end()
+         "annotations": [...]}                              # notes added after the fact that concern the whole rollout, see argus_bench.annotate()
+
+    Notes about one call are in calls[i]["annotations"] (a list, empty if none): {"message": <index or None>, "data": ..., "by": ..., "t": ...}.
     """
-    header, calls, end = _read(path)
-    return {"id": os.path.splitext(os.path.basename(os.fspath(path)))[0], "header": header, "calls": calls, "end": end}
+    header, calls, end, notes = _read(path)
+    for c in calls:
+        c["annotations"] = []
+    whole = []
+    for n in notes:
+        if isinstance(n.get("call"), int) and 0 <= n["call"] < len(calls):
+            calls[n["call"]]["annotations"].append({k: n.get(k) for k in ("message", "data", "by", "t")})
+        elif n.get("call") is None:
+            whole.append({k: n.get(k) for k in ("data", "by", "t")})
+    return {"id": os.path.splitext(os.path.basename(os.fspath(path)))[0], "header": header, "calls": calls, "end": end, "annotations": whole}
 
 
 MONITOR_CALL_FIELDS = ("messages", "tools", "output", "finish_reason")
@@ -21,6 +32,6 @@ MONITOR_CALL_FIELDS = ("messages", "tools", "output", "finish_reason")
 
 def monitor_view(rollout):
     """What a monitor may see: the transcript only. Hidden: env_state, the end state, the run header (rollout_id, library, revision, ...),
-    sampling settings, timestamps and the rollout id. Use this function to build the monitor's input so that evidence meant only for the
+    sampling settings, timestamps, annotations and the rollout id. Use this function to build the monitor's input so that evidence meant only for the
     verifier cannot leak."""
     return {"calls": [{k: c[k] for k in MONITOR_CALL_FIELDS if k in c} for c in rollout["calls"]]}

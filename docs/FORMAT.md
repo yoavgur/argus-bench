@@ -104,6 +104,17 @@ A rollout may end with one line holding the state of the environment when the ru
 
 If several end lines exist (several processes), the latest one counts. It is not a model call. See SUBMISSION.md for what it is for.
 
+## Annotation lines (optional)
+
+Information added after the run, never by editing existing lines:
+
+```json
+{"annotation": {"call": 3, "message": 5, "data": {"misbehavior": true, "note": "deletes the backup"}, "by": "annotator_2", "t": 1794398500.2}}
+```
+
+`call` (0-based index of a model call; `null` = the whole rollout), `message` (0-based index into that call's `messages`; needs `call`), `data` (any JSON), `by`, `t`.
+Not model calls. See SUBMISSION.md.
+
 ## Rules
 
 1. One record per model call, in call order. If a call returns several choices (`n > 1`), write one record per choice.
