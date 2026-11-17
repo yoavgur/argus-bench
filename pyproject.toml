@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling>=1.21,<1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "argus-bench"
+version = "0.1.0"
+description = "Record every model call (what the model saw, what it said) of an agent run in one unified JSONL format, for any inference library."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "The ARGUS authors" }]
+keywords = ["llm", "rollouts", "logging", "agents", "vllm", "sglang", "benchmark"]
+classifiers = ["License :: OSI Approved :: MIT License", "Programming Language :: Python :: 3", "Intended Audience :: Science/Research", "Topic :: Scientific/Engineering :: Artificial Intelligence"]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest", "openai"]
+
+[project.scripts]
+argus-bench = "argus_bench.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/argus_bench"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"argus_bench.pth" = "argus_bench.pth"
+
+[project.urls]
+Homepage = "https://github.com/yoavgur/argus-bench"
+Source = "https://github.com/yoavgur/argus-bench"
+Issues = "https://github.com/yoavgur/argus-bench/issues"

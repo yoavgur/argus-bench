@@ -1,0 +1,1 @@
+import os; os.environ.get("ARGUS_BENCH_LOG") and __import__("argus_bench._auto", fromlist=["start"]).start()
