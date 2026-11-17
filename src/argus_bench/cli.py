@@ -47,7 +47,12 @@ def main(argv=None):
         return 1 if problems or run.get("errors") else 0
     bad = False
     for f in a.files:
-        problems, warnings, info = check(f)
+        try:
+            problems, warnings, info = check(f)
+        except ValueError as e:
+            print(f"{f}: PROBLEM: {e}")
+            bad = True
+            continue
         print(f"{f}: {info.get('calls', 0)} calls  {json.dumps({k: v for k, v in info.items() if k != 'header' and k != 'calls'})}")
         for p in problems:
             print("  PROBLEM:", p); bad = True

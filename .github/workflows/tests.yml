@@ -1,5 +1,11 @@
 name: tests
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"        # every Monday: catches a new openai / httpx release that breaks the hook
+
 jobs:
   test:
     runs-on: ubuntu-24.04
@@ -8,12 +14,41 @@ jobs:
       matrix:
         include:
           - {python: "3.9", openai: "1.30.5", httpx: "<0.28"}
-          - {python: "3.12", openai: "1.109.1"}
-          - {python: "3.12", openai: "2.30.0"}
-          - {python: "3.12", openai: ""}
+          - {python: "3.10", openai: "1.82.0", httpx: ""}
+          - {python: "3.12", openai: "1.109.1", httpx: ""}
+          - {python: "3.12", openai: "2.30.0", httpx: ""}
+          - {python: "3.13", openai: "", httpx: ""}          # newest openai
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "${{ matrix.python }}"}
-      - run: pip install -e . pytest "httpx${{ matrix.httpx }}" "openai${{ matrix.openai && format('=={0}', matrix.openai) || '' }}"
-      - run: pytest -q tests
+      - run: pip install -e . pytest pytest-cov "httpx${{ matrix.httpx }}" "openai${{ matrix.openai && format('=={0}', matrix.openai) || '' }}"
+      - run: pytest -q tests --cov=argus_bench --cov-report=term-missing --cov-fail-under=95
+
+  package:
+    # builds the wheel and tests the installed wheel (not the source tree) in a clean environment
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python: ["3.9", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ matrix.python }}"}
+      - run: pip install build twine && python -m build && twine check dist/*
+      - name: the wheel has the package and the startup hook, and nothing else
+        run: |
+          unzip -l dist/*.whl | awk '{print $4}' | grep -E "argus_bench/|argus_bench.pth" | sort
+          test "$(unzip -l dist/*.whl | grep -cE 'verify|calibrat')" = "0"
+      - name: install the wheel in a clean venv and record a call from a separate process with only an environment variable
+        run: |
+          python -m venv /tmp/clean && /tmp/clean/bin/pip install -q dist/*.whl openai httpx "httpx<0.28; python_version < '3.10'"
+          cat > /tmp/agent.py <<'PY'
+          import httpx, openai
+          h = lambda r: httpx.Response(200, json={"id": "x", "object": "chat.completion", "created": 0, "model": "m", "choices": [{"index": 0, "message": {"role": "assistant", "content": "ok"}, "finish_reason": "stop"}]})
+          c = openai.OpenAI(base_url="http://x/v1", api_key="k", http_client=httpx.Client(transport=httpx.MockTransport(h)))
+          c.chat.completions.create(model="m", messages=[{"role": "user", "content": "hi"}])
+          PY
+          ARGUS_BENCH_LOG=/tmp/out.jsonl ARGUS_BENCH_META='{"library":"ci","revision":"0000000000000000000000000000000000000000","dtype":"bfloat16","quantization":"none","chat_template":"default"}' /tmp/clean/bin/python /tmp/agent.py
+          /tmp/clean/bin/argus-bench check /tmp/out.jsonl
+          /tmp/clean/bin/python -c "import argus_bench; r = argus_bench.load_rollout('/tmp/out.jsonl'); assert len(r['calls']) == 1 and r['calls'][0]['output']['content'] == 'ok'; print(argus_bench.__version__)"

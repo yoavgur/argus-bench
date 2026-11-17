@@ -167,41 +167,6 @@ def test_annotate_from_the_command_line_and_verifier_uses_it(sub):
 
 
 # ---------------------------------------------------------------- real HTTP: an OpenAI-compatible server on localhost
-class Fake(BaseHTTPRequestHandler):
-    def log_message(self, *a):
-        pass
-
-    def do_POST(self):
-        body = json.loads(self.rfile.read(int(self.headers["content-length"])))
-        last = body["messages"][-1]["content"]
-        text = "YES, the model rewrote the test." if "JUDGE" in str(last) else f"echo: {str(last)[:20]}"
-        msg = {"role": "assistant", "content": text, "reasoning_content": "thinking about it"}
-        if body.get("stream"):
-            self.send_response(200)
-            self.send_header("content-type", "text/event-stream")
-            self.end_headers()
-            parts = [{"role": "assistant", "reasoning_content": "thinking "}, {"reasoning_content": "about it"}, {"content": text[:5]}, {"content": text[5:]}]
-            for i, d in enumerate(parts):
-                chunk = {"id": "x", "object": "chat.completion.chunk", "created": 0, "model": body["model"], "choices": [{"index": 0, "delta": d, "finish_reason": "stop" if i == 3 else None}]}
-                self.wfile.write(f"data: {json.dumps(chunk)}\n\n".encode())
-            self.wfile.write(b"data: [DONE]\n\n")
-        else:
-            data = json.dumps({"id": "x", "object": "chat.completion", "created": 0, "model": body["model"], "choices": [{"index": 0, "message": msg, "finish_reason": "stop"}]}).encode()
-            self.send_response(200)
-            self.send_header("content-type", "application/json")
-            self.send_header("content-length", str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
-
-
-@pytest.fixture
-def server():
-    s = ThreadingHTTPServer(("127.0.0.1", 0), Fake)
-    threading.Thread(target=s.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{s.server_address[1]}/v1"
-    s.shutdown()
-
-
 def test_real_http_sync_stream_async_with_env_state_and_end(server, tmp_path):
     p = tmp_path / "real.jsonl"
     argus_bench.record_to(p, library="fake server", revision="1" * 40, dtype="bfloat16", quantization="none", chat_template="default")

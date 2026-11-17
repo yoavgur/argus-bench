@@ -54,12 +54,13 @@ def check_submission(path, run=False, llm_base_url=None, log=print):
     root, tmp = _root(path)
     try:
         rdir = os.path.join(root, "rollouts")
-        files = sorted(f for f in os.listdir(rdir) if not f.startswith(".")) if os.path.isdir(rdir) else []
+        everything = sorted(f for f in os.listdir(rdir) if not f.startswith(".")) if os.path.isdir(rdir) else []
+        files = [f for f in everything if f.endswith(".jsonl")]
+        for f in everything:
+            if f not in files:
+                warnings.append(f"rollouts/{f}: not a .jsonl file, ignored")
         if not files:
-            return ["no rollout files in rollouts/"], warnings, report
-        for f in files:
-            if not f.endswith(".jsonl"):
-                warnings.append(f"rollouts/{f}: not a .jsonl file")
+            return ["no rollout files (*.jsonl) in rollouts/"], warnings, report
         # labels
         lp = os.path.join(root, "labels.json")
         labels = {}
@@ -89,7 +90,11 @@ def check_submission(path, run=False, llm_base_url=None, log=print):
         # each rollout
         models = set()
         for f in files:
-            p, w, info = check(os.path.join(rdir, f))
+            try:
+                p, w, info = check(os.path.join(rdir, f))
+            except ValueError as e:
+                problems.append(f"rollouts/{f}: {e}")
+                continue
             problems += [f"rollouts/{f}: {x}" for x in p]
             warnings += [f"rollouts/{f}: {x}" for x in w]
             models |= set(info.get("models", []))
