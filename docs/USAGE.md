@@ -136,7 +136,7 @@ rollout.jsonl: 4 calls  {"models": ["Qwen/Qwen3-1.7B"], "calls_extending_previou
 ```
 
 It reports problems (no messages, empty output), warnings (missing header declarations, tool-call arguments that are not valid JSON,
-missing sampling settings) and how many calls continue the previous call's input vs. start a new context (compaction, a new conversation, or a
+missing sampling settings, a run that ends right after a tool call so its last result is not recorded) and how many calls continue the previous call's input vs. start a new context (compaction, a new conversation, or a
 parallel thread). No model and no network needed. Exit code 1 if there are problems.
 
 ## What was tested
