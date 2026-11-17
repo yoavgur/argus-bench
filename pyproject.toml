@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "argus-bench"
-version = "0.1.1"
+version = "0.1.2"
 description = "Record every model call (what the model saw, what it said) of an agent run in one unified JSONL format, for any inference library."
 readme = "README.md"
 license = { text = "MIT" }
