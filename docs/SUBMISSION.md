@@ -70,6 +70,8 @@ A complete walkthrough is in [EXAMPLE.md](EXAMPLE.md). Four places, use whicheve
 
 4. **`argus_bench.annotate(...)`**: added later, by a person or another program (see the next section).
 
+Note: a tool result appears in the file only as an input message of the next model call. If a run can end right after a tool call, put that last result in `end(...)`.
+
 Keep `env_state`/`end` values small and JSON-able.
 
 ## Adding evidence after the run (human annotators, second graders)

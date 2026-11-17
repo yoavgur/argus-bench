@@ -122,6 +122,8 @@ Not model calls. See SUBMISSION.md.
 3. Every record is self-contained (`messages` is the whole input). **Context compaction needs no special handling**: after the agent compacts,
    the next record simply has a shorter or different `messages`. There is no compaction marker.
 4. Calls that failed with an error (no output) are not recorded.
+   A tool result is recorded only as an input message of the *next* model call. If the run stops right after a tool call (step limit, timeout, crash),
+   that last result is in no record: save it with `argus_bench.end({...})` if your verifier needs it.
 5. Subagents, parallel branches and several processes may write into the same file; each record stands on its own. Write each line with a single
    write call so lines from different processes do not interleave.
 6. `env_state` is whatever you declare it to be (a dict of facts, a hash, a file path). It is opaque, self-reported and should stay small;
