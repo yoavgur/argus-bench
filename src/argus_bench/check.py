@@ -12,10 +12,25 @@ def load(path):
         except json.JSONDecodeError as e:
             raise ValueError(f"{path}:{i}: not valid JSON ({e})")
         if "header" in obj:
-            header.update(obj["header"])
+            h = dict(obj["header"])
+            if isinstance(h.get("models"), dict) and isinstance(header.get("models"), dict):
+                h["models"] = {**header["models"], **h["models"]}          # several processes may declare different models
+            header.update(h)
         else:
             recs.append(obj)
     return header, recs
+
+
+RUN_FIELDS = ("revision", "dtype", "quantization", "chat_template")
+
+
+def model_info(header, model):
+    """How `model` was run: header['models'][model] if declared there, else the single-model fields at the top of the header
+    (revision, dtype, quantization, chat_template)."""
+    declared = (header.get("models") or {}).get(model)
+    if declared is not None:
+        return dict(declared)
+    return {k: header[k] for k in RUN_FIELDS if header.get(k) is not None}
 
 
 def _same(a, b):
@@ -45,16 +60,24 @@ def check(path):
     models = {r.get("model") for r in recs}
     if None in models or "" in models:
         warnings.append("some calls have no `model`; pass model=... to log()")
-    if not header.get("revision"):
-        warnings.append("no model revision in the header: use record_to(path, revision='<full hf commit hash>')")
     if not header.get("library"):
         warnings.append("no `library` in the header (e.g. library='vllm 0.23.0 (server)')")
-    if not header.get("dtype"):
-        warnings.append("no `dtype` in the header (e.g. dtype='bfloat16')")
-    if not header.get("quantization"):
-        warnings.append("no `quantization` declared in the header (e.g. quantization='none')")
-    if not header.get("chat_template"):
-        warnings.append("no `chat_template` declared in the header (e.g. chat_template='default')")
+    names = sorted(m for m in models if m)
+    declared = header.get("models") or {}
+    for name in names:
+        info = model_info(header, name)
+        who = f"model {name!r}: " if len(names) > 1 or declared else ""
+        if len(names) > 1 and name not in declared and not info:
+            warnings.append(f"{who}not declared in the header `models` (declare revision, dtype, quantization, chat_template for every model used)")
+            continue
+        if not info.get("revision"):
+            warnings.append(f"{who}no model revision declared: use record_to(path, revision='<full hf commit hash>') or models={{name: {{...}}}}")
+        for k, hint in (("dtype", "bfloat16"), ("quantization", "none"), ("chat_template", "default")):
+            if not info.get(k):
+                warnings.append(f"{who}no `{k}` declared (e.g. {k}={hint!r})")
+    for name in declared:
+        if name not in names:
+            warnings.append(f"header declares model {name!r} but no call used it")
     if not any(r.get("sampling") for r in recs):
         warnings.append("no sampling settings recorded (temperature/top_p/...)")
     # how the context evolved: extension of the previous call, or something else (e.g. compaction, a new thread)

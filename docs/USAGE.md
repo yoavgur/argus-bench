@@ -13,7 +13,7 @@ Pick the row that matches how your agent calls the model. All of them write the 
 | the model runs inside your own Python process (transformers, vLLM `LLM`, SGLang `Engine`, llama-cpp-python, your own loop) | [C. `log()` after each generation](#c-model-runs-in-your-process) |
 | anything else (another language, raw HTTP, another SDK) | [D. write the file yourself](#d-anything-else) |
 
-Always declare what you know about the run: `revision` (full commit hash), `library`, `dtype`, `quantization`, `chat_template`, `rollout_id`.
+Always declare what you know about the run: `rollout_id`, `library`, and for the model `revision` (full commit hash), `dtype`, `quantization`, `chat_template`.
 `argus-bench check` warns about missing ones.
 
 ## A. OpenAI-compatible server
@@ -31,6 +31,14 @@ argus_bench.record_to("rollout.jsonl",
 Everything the `openai` package sends to `/chat/completions` from then on is recorded: `client.chat.completions.create`, `with_raw_response`,
 sync, async and streaming, and libraries built on the SDK (LiteLLM, LangChain, Agents SDK). Your code gets the normal responses back, unchanged.
 Nothing else about how you start or call the server changes.
+
+If the run uses more than one model, declare each one by name instead of the single `revision=`/`dtype=`/... keys:
+
+```python
+argus_bench.record_to("rollout.jsonl", rollout_id="task-17-run-3", library="vllm 0.23.0 (server)",
+                      models={"Qwen/Qwen3-1.7B": {"revision": "<hash>", "dtype": "bfloat16", "quantization": "none", "chat_template": "default"},
+                              "Qwen/Qwen3-0.6B": {"revision": "<hash>", "dtype": "bfloat16", "quantization": "none", "chat_template": "default"}})
+```
 
 Notes:
 * The model server does not need any flag or plugin.

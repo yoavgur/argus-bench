@@ -28,6 +28,17 @@ Put every fact about the *run* here, not in the records.
 
 Any additional keys are allowed.
 
+**Several models in one run.** If the agent calls more than one model (for example a second, smaller model that summarises the context), declare each
+model by the name used in the records' `model` field instead of the four single-model keys above:
+
+```json
+{"header": {"rollout_id": "task-17-run-3", "library": "vllm 0.23.0 (server)",
+            "models": {"Qwen/Qwen3-1.7B": {"revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e", "dtype": "bfloat16", "quantization": "none", "chat_template": "default"},
+                       "Qwen/Qwen3-0.6B": {"revision": "c1899de289a04d12100db370d81485cdf75e47ca", "dtype": "bfloat16", "quantization": "none", "chat_template": "default"}}}}
+```
+
+Every model that appears in a record must be declared. For a run with one model you can use either form.
+
 ## Record line (one per model call)
 
 ```json

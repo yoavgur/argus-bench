@@ -209,3 +209,36 @@ def test_many_processes_do_not_interleave_lines(tmp_path):
     assert all(p.wait() == 0 for p in ps)
     _, recs = load(log)                                  # load() raises on any torn line
     assert len(recs) == 120
+
+
+def test_models_declared_per_model(tmp_path):
+    from argus_bench.check import model_info
+    p = tmp_path / "m.jsonl"
+    full = {"dtype": "bfloat16", "quantization": "none", "chat_template": "default"}
+    argus_bench.record_to(p, library="x", models={"big": {"revision": "r1", **full}, "small": {"revision": "r2", **full}})
+    argus_bench.log(MSGS, "a", model="big", sampling={"temperature": 1})
+    argus_bench.log(MSGS, "b", model="small", sampling={"temperature": 1})
+    argus_bench.stop()
+    header, _ = load(p)
+    assert model_info(header, "small")["revision"] == "r2" and model_info(header, "big")["revision"] == "r1"
+    problems, warnings_, _ = check(p)
+    assert not problems and not warnings_
+
+    q = tmp_path / "m2.jsonl"                                   # second model is used but not declared
+    argus_bench.record_to(q, library="x", models={"big": {"revision": "r1", **full}})
+    argus_bench.log(MSGS, "a", model="big", sampling={"temperature": 1})
+    argus_bench.log(MSGS, "b", model="small", sampling={"temperature": 1})
+    argus_bench.stop()
+    assert any("'small'" in w and "not declared" in w for w in check(q)[1])
+
+
+def test_single_model_form_still_works_and_headers_from_processes_merge(tmp_path):
+    from argus_bench.check import model_info
+    p = tmp_path / "s.jsonl"
+    argus_bench.record_to(p, library="x", revision="r1", dtype="bfloat16", quantization="none", chat_template="default")
+    argus_bench.log(MSGS, "a", model="m", sampling={"temperature": 1})
+    argus_bench.stop()
+    assert model_info(load(p)[0], "m")["revision"] == "r1" and not check(p)[1]
+    with open(p, "a") as f:                                       # a second process declared another model
+        f.write(json.dumps({"header": {"models": {"a": {"revision": "1"}}}}) + "\n" + json.dumps({"header": {"models": {"b": {"revision": "2"}}}}) + "\n")
+    assert set(load(p)[0]["models"]) == {"a", "b"}

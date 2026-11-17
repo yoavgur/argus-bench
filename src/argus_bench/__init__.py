@@ -56,8 +56,10 @@ def _write(rec):
 
 def record_to(path, _quiet=False, **meta):
     """Start appending one record per model call to `path`. `meta` goes in the header. Declare what you can:
-    revision="<full hf commit hash>", rollout_id="...", library="vllm 0.23", quantization="none" | "gguf-q4_k_m" | ...,
-    chat_template="default" | "<name or hash of a custom template>", dtype="bfloat16"."""
+    rollout_id="...", library="vllm 0.23", and how the model was run:
+        revision="<full hf commit hash>", dtype="bfloat16", quantization="none" | "gguf-q4_k_m" | ..., chat_template="default" | "<name or hash>"
+    If the run uses several models (e.g. a second model that summarises the context), declare each one by name instead:
+        models={"Qwen/Qwen3-1.7B": {"revision": "...", "dtype": "bfloat16", "quantization": "none", "chat_template": "default"}, "Qwen/Qwen3-0.6B": {...}}"""
     _S["path"], _S["meta"], _S["n"], _S["quiet"] = os.fspath(path), meta, 0, _quiet
     header = {"header": {"argus_bench": __version__, "python": platform.python_version(), "started": time.time(), **meta}}
     try:
