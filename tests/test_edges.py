@@ -325,3 +325,16 @@ def test_explicit_close_of_streams(out):
     asyncio.run(go())
     recs = load(out)[1]
     assert len(recs) == 2 and all(r["output"]["content"] == "hey" for r in recs)
+
+
+def test_check_warns_when_the_run_ends_right_after_a_tool_call(tmp_path):
+    p = tmp_path / "t.jsonl"
+    argus_bench.record_to(p, library="x", **FULL)
+    argus_bench.log(MSGS, {"content": "", "tool_calls": [{"id": "1", "name": "bash", "arguments": "{}"}]}, model="m", sampling={"temperature": 1})
+    argus_bench.stop()
+    assert any("ends right after a tool call" in w for w in check(p)[1])
+    q = tmp_path / "u.jsonl"                                                  # a run that ends with a final answer: no warning
+    argus_bench.record_to(q, library="x", **FULL)
+    argus_bench.log(MSGS, "final answer", model="m", sampling={"temperature": 1})
+    argus_bench.stop()
+    assert not any("tool call" in w for w in check(q)[1])

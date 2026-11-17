@@ -117,6 +117,10 @@ def check(path):
             else:
                 other += 1
         prev = r
+    last = recs[-1].get("output") or {}
+    if last.get("tool_calls"):
+        warnings.append("the run ends right after a tool call: its result is in no record (results appear only as input of the next model call). "
+                        "If your verifier needs it, save it with argus_bench.end({...})")
     info = {"calls": len(recs), "models": sorted(m for m in models if m), "calls_extending_previous": ext,
             "calls_with_new_context (compaction / new thread)": other, "annotations": len(notes), "header": header}
     return problems, warnings, info
